@@ -1,0 +1,36 @@
+#cloud-config
+users:
+  - name: solar
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: users, sudo
+    ssh_authorized_keys:
+      - ${pub_key}
+write_files:
+  # SSH Lockdown
+  - path: /etc/ssh/sshd_config.d/20-ssh-lockdown.conf
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+    permissions: "0600"
+    owner: root:root
+    # IP Foward
+  - path: /etc/sysctl.d/10-ip-forwarding.conf
+    content: |
+      net.ipv4.ip_forward = 1
+    permissions : "0600"
+    owner: root:root
+  - path: /etc/sysconfig/iptables
+    content: |
+      *nat
+      :PREROUTING ACCEPT [0:0]
+      :INPUT ACCEPT [0:0]
+      :OUTPUT ACCEPT [0:0]
+      :POSTROUTING ACCEPT [0:0]
+      -A POSTROUTING -s ${vpc_ip_range} -o eth0 -j MASQUERADE
+      COMMIT
+    permissions: "0600"
+    owner: root:root
+package_upgrade: true
+packages:
+  - iptables
